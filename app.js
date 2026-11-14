@@ -97,7 +97,7 @@ class AudioVisualizer {
         
         document.getElementById('gainSlider').addEventListener('input', (e) => {
             this.settings.gain = parseFloat(e.target.value);
-            document.getElementById('gainValue').textContent = e.target.value;
+            document.getElementById('gainValue').textContent = parseFloat(e.target.value).toFixed(1);
             if (this.gainNode) {
                 this.gainNode.gain.value = this.settings.gain;
             }

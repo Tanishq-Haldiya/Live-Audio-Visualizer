@@ -490,7 +490,11 @@ textarea.form-control {
 }
 
 select.form-control {
-  padding: var(--space-8) var(--space-12);
+  height: 38px;
+  line-height: 38px;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-32) 0 var(--space-12);
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -498,7 +502,12 @@ select.form-control {
   background-repeat: no-repeat;
   background-position: right var(--space-12) center;
   background-size: 16px;
-  padding-right: var(--space-32);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+select.form-control::-ms-expand {
+  display: none;
 }
 
 /* Add a dark mode specific caret */
@@ -1098,6 +1107,11 @@ li {
 }
 
 select.form-control {
+  height: 38px;
+  line-height: 38px;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-32) 0 var(--space-12);
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -1105,7 +1119,8 @@ select.form-control {
   background-repeat: no-repeat;
   background-position: right var(--space-12) center;
   background-size: 16px;
-  padding-right: var(--space-32);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1323,23 +1338,52 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .control-section .form-control {
-  background: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--color-white);
 }
 
 .control-section .form-control:focus {
   border-color: var(--color-primary);
-  background: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.15);
+  outline: none;
 }
 
 .control-section select.form-control {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  height: 38px;
+  line-height: 38px;
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-32) 0 var(--space-12);
+  background-color: rgba(255, 255, 255, 0.1);
   background-image: var(--select-caret-dark);
+  background-repeat: no-repeat;
+  background-position: right var(--space-12) center;
+  background-size: 16px 16px;
+  cursor: pointer;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.control-section select.form-control::-ms-expand {
+  display: none;
+}
+
+.control-section select.form-control:focus {
+  background-color: rgba(255, 255, 255, 0.15);
+  background-image: var(--select-caret-dark);
+  background-repeat: no-repeat;
+  background-position: right var(--space-12) center;
+  background-size: 16px 16px;
 }
 
 .control-section select.form-control option {
   background: #262828;
   color: var(--color-white);
+  padding: var(--space-8);
 }
 
 /* Status Display */
