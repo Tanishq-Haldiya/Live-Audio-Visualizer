@@ -367,33 +367,13 @@ class AudioVisualizer {
             this.ctx.fillStyle = gradient;
         }
         
-        // Logarithmic frequency bounds (focus on audible musical spectrum ~25 Hz to 14 kHz)
-        const minBin = 1;
-        const maxBin = Math.max(minBin + 1, Math.floor(this.bufferLength * 0.70));
-        
         for (let i = 0; i < this.bufferLength; i++) {
-            const t1 = i / this.bufferLength;
-            const t2 = (i + 1) / this.bufferLength;
-            
-            // Map bar position logarithmically to frequency bins for balanced musical octave distribution
-            const startBin = Math.min(this.bufferLength - 1, Math.floor(minBin * Math.pow(maxBin / minBin, t1)));
-            const endBin = Math.min(this.bufferLength, Math.max(startBin + 1, Math.floor(minBin * Math.pow(maxBin / minBin, t2))));
-            
-            let rawVal = 0;
-            for (let b = startBin; b < endBin; b++) {
-                if (this.dataArray[b] > rawVal) {
-                    rawVal = this.dataArray[b];
-                }
-            }
-            
-            // 1. Exponential decay on starting bass bars to eliminate low-end boom / desk vibration
-            const lowDecay = 1.0 - 0.58 * Math.exp(-t1 / 0.08);
-            // 2. High-frequency tilt compensation to elevate naturally quieter mids and highs
-            const highBoost = 1.0 + 1.8 * Math.pow(t1, 0.65);
-            const intensity = Math.min(1.0, (rawVal / 255) * lowDecay * highBoost);
+            // DC offset suppression on bin 0 (0 Hz electrical bias) so it doesn't spike artificially
+            const rawVal = (i === 0) ? this.dataArray[1] * 0.5 : this.dataArray[i];
+            const intensity = rawVal / 255;
             
             // Symmetrical half-height above and below the horizontal center line
-            const halfHeight = Math.max(1.5, Math.min(maxHalfHeight, intensity * (this.canvas.height * 0.42) * this.settings.gain));
+            const halfHeight = Math.max(1.5, Math.min(maxHalfHeight, intensity * (this.canvas.height * 0.44) * this.settings.gain));
             
             const x = i * barWidth;
             const y = centerY - halfHeight;
@@ -429,27 +409,9 @@ class AudioVisualizer {
         this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.stroke();
         
-        // Logarithmic frequency bounds
-        const minBin = 1;
-        const maxBin = Math.max(minBin + 1, Math.floor(this.bufferLength * 0.70));
-        
         for (let i = 0; i < this.bufferLength; i++) {
-            const t1 = i / this.bufferLength;
-            const t2 = (i + 1) / this.bufferLength;
-            const startBin = Math.min(this.bufferLength - 1, Math.floor(minBin * Math.pow(maxBin / minBin, t1)));
-            const endBin = Math.min(this.bufferLength, Math.max(startBin + 1, Math.floor(minBin * Math.pow(maxBin / minBin, t2))));
-            
-            let rawVal = 0;
-            for (let b = startBin; b < endBin; b++) {
-                if (this.dataArray[b] > rawVal) {
-                    rawVal = this.dataArray[b];
-                }
-            }
-            
-            const lowDecay = 1.0 - 0.58 * Math.exp(-t1 / 0.08);
-            const highBoost = 1.0 + 1.8 * Math.pow(t1, 0.65);
-            const intensity = Math.min(1.0, (rawVal / 255) * lowDecay * highBoost);
-            
+            const rawVal = (i === 0) ? this.dataArray[1] * 0.5 : this.dataArray[i];
+            const intensity = rawVal / 255;
             const angle = (i / this.bufferLength) * Math.PI * 2;
             const barHeight = intensity * radius * 0.9 * this.settings.gain;
             
