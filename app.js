@@ -374,34 +374,93 @@ class AudioVisualizer {
     }
     
     drawWaveform() {
-        if (!this.timeDataArray || this.timeDataArray.length !== this.bufferLength) {
-            this.timeDataArray = new Uint8Array(this.bufferLength);
+        // Use full fftSize resolution for complete wave cycles
+        const sampleCount = this.analyser.fftSize;
+        if (!this.timeDataArray || this.timeDataArray.length !== sampleCount) {
+            this.timeDataArray = new Uint8Array(sampleCount);
         }
         this.analyser.getByteTimeDomainData(this.timeDataArray);
         
+        // Scan for peak amplitude to calculate adaptive scaling
+        let maxDev = 0;
+        for (let i = 0; i < sampleCount; i++) {
+            const dev = Math.abs(this.timeDataArray[i] - 128);
+            if (dev > maxDev) {
+                maxDev = dev;
+            }
+        }
+        
+        const normMax = maxDev / 128.0;
+        // Adaptive boost ensures the wave is never flat during active audio, scaling up to 4.5x for soft inputs
+        const autoBoost = normMax > 0.002 ? Math.max(1.4, Math.min(4.5, 0.38 / normMax)) : 1.0;
+        // Total dynamic scale amplified by sensitivity slider
+        const scale = (this.canvas.height * 0.40) * autoBoost * this.settings.gain;
+        const centerY = this.canvas.height / 2;
+        const maxOffset = (this.canvas.height / 2) - 25;
+        
         const colors = this.colorSchemes[this.settings.colorScheme];
-        // Select vibrant color from palette for visibility against dark canvas
-        this.ctx.strokeStyle = colors[Math.min(2, colors.length - 1)];
-        this.ctx.lineWidth = 2.5;
+        
+        // Create full spectrum linear gradient across the canvas
+        const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
+        for (let c = 0; c < colors.length; c++) {
+            gradient.addColorStop(c / (colors.length - 1), colors[c]);
+        }
+        
+        this.ctx.save();
+        
+        // Ambient neon phosphor glow
+        this.ctx.shadowBlur = 14;
+        this.ctx.shadowColor = colors[Math.min(1, colors.length - 1)];
+        this.ctx.strokeStyle = gradient;
+        this.ctx.lineWidth = 3.5;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        
+        const sliceWidth = this.canvas.width / (sampleCount - 1);
         this.ctx.beginPath();
         
-        const sliceWidth = this.canvas.width / this.bufferLength;
-        let x = 0;
-        
-        for (let i = 0; i < this.bufferLength; i++) {
-            const v = this.timeDataArray[i] / 128.0;
-            const y = (v * this.canvas.height) / 2;
+        for (let i = 0; i < sampleCount; i++) {
+            const deviation = (this.timeDataArray[i] - 128) / 128.0;
+            // Smooth hyperbolic tangent compression prevents harsh square-wave clipping
+            const rawOffset = deviation * scale;
+            const compressedOffset = maxOffset * Math.tanh(rawOffset / maxOffset);
+            const y = centerY + compressedOffset;
+            const x = i * sliceWidth;
             
             if (i === 0) {
                 this.ctx.moveTo(x, y);
             } else {
                 this.ctx.lineTo(x, y);
             }
-            
-            x += sliceWidth;
         }
         
         this.ctx.stroke();
+        
+        // Secondary translucent harmonic echo for depth
+        if (normMax > 0.005) {
+            this.ctx.shadowBlur = 0;
+            this.ctx.lineWidth = 1.5;
+            this.ctx.strokeStyle = this.hexToRgba(colors[0], 0.35);
+            this.ctx.beginPath();
+            
+            for (let i = 0; i < sampleCount; i++) {
+                const deviation = (this.timeDataArray[i] - 128) / 128.0;
+                const rawOffset = -deviation * scale * 0.55;
+                const compressedOffset = maxOffset * Math.tanh(rawOffset / maxOffset);
+                const y = centerY + compressedOffset;
+                const x = i * sliceWidth;
+                
+                if (i === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            this.ctx.stroke();
+        }
+        
+        this.ctx.restore();
     }
     
     drawSpectrogram() {
