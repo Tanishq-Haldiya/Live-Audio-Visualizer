@@ -11,6 +11,7 @@ class AudioVisualizer {
         this.mediaStream = null;
         this.timeDataArray = null;
         this.isPlaying = false;
+        this.audioSourceType = 'none'; // 'mic', 'system', 'file', or 'none'
         
         // Canvas properties
         this.canvas = null;
@@ -205,6 +206,7 @@ class AudioVisualizer {
                 stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             }
             this.mediaStream = stream;
+            this.audioSourceType = 'mic';
             
             this.setupAudioProcessing(stream);
             this.updateStatus('Recording (Microphone)', 'success');
@@ -271,6 +273,7 @@ class AudioVisualizer {
             stream.getVideoTracks().forEach(track => track.stop());
             
             this.mediaStream = stream;
+            this.audioSourceType = 'system';
             
             // Handle user clicking the browser's native "Stop sharing" bar
             audioTracks[0].onended = () => {
@@ -306,6 +309,7 @@ class AudioVisualizer {
             const arrayBuffer = await file.arrayBuffer();
             const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
             
+            this.audioSourceType = 'file';
             this.playAudioBuffer(audioBuffer);
             this.updateStatus('Playing File', 'success');
             this.updateAudioButtons('file');
@@ -387,6 +391,7 @@ class AudioVisualizer {
         }
         
         this.isPlaying = false;
+        this.audioSourceType = 'none';
         this.updateStatus('Stopped', 'info');
         this.updateAudioButtons('none');
     }
@@ -437,9 +442,22 @@ class AudioVisualizer {
         animate(0);
     }
     
+    getActiveBinCount() {
+        if (this.audioSourceType === 'system' && this.audioContext) {
+            const nyquist = this.audioContext.sampleRate / 2;
+            // Digital streaming/browser audio cuts off at ~16.2 kHz; crop to active audible band
+            const maxFreq = 16200;
+            const ratio = Math.min(1.0, maxFreq / nyquist);
+            return Math.max(16, Math.floor(this.bufferLength * ratio));
+        }
+        // Microphone keeps 100% full spectrum resolution
+        return this.bufferLength;
+    }
+    
     drawFrequencyBars() {
         const centerY = this.canvas.height / 2;
-        const barWidth = this.canvas.width / this.bufferLength;
+        const activeBins = this.getActiveBinCount();
+        const barWidth = this.canvas.width / activeBins;
         const gap = barWidth > 3 ? 1 : (barWidth > 1.5 ? 0.5 : 0);
         const renderWidth = Math.max(1, barWidth - gap);
         const maxHalfHeight = (this.canvas.height / 2) - 15;
@@ -460,7 +478,7 @@ class AudioVisualizer {
             this.ctx.fillStyle = gradient;
         }
         
-        for (let i = 0; i < this.bufferLength; i++) {
+        for (let i = 0; i < activeBins; i++) {
             // DC offset suppression on bin 0 (0 Hz electrical bias) so it doesn't spike artificially
             const rawVal = (i === 0) ? this.dataArray[1] * 0.5 : this.dataArray[i];
             const intensity = rawVal / 255;
@@ -473,7 +491,7 @@ class AudioVisualizer {
             const height = halfHeight * 2;
             
             if (!isGradientMode) {
-                const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
+                const colorIndex = Math.floor((i / activeBins) * colors.length);
                 this.ctx.fillStyle = colors[colorIndex % colors.length];
             }
             
@@ -494,6 +512,7 @@ class AudioVisualizer {
         const scheme = this.settings.colorScheme;
         const colors = this.colorSchemes[scheme] || this.colorSchemes.rainbow;
         const isGradientMode = scheme === 'gradient' || scheme === 'sunset' || scheme === 'neon';
+        const activeBins = this.getActiveBinCount();
         
         // Inner subtle baseline circle
         this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -502,10 +521,10 @@ class AudioVisualizer {
         this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.stroke();
         
-        for (let i = 0; i < this.bufferLength; i++) {
+        for (let i = 0; i < activeBins; i++) {
             const rawVal = (i === 0) ? this.dataArray[1] * 0.5 : this.dataArray[i];
             const intensity = rawVal / 255;
-            const angle = (i / this.bufferLength) * Math.PI * 2;
+            const angle = (i / activeBins) * Math.PI * 2;
             const barHeight = intensity * radius * 0.9 * this.settings.gain;
             
             const x1 = centerX + Math.cos(angle) * radius;
@@ -515,17 +534,17 @@ class AudioVisualizer {
             
             if (isGradientMode) {
                 if (scheme === 'gradient') {
-                    const hue = (i / this.bufferLength) * 360;
+                    const hue = (i / activeBins) * 360;
                     this.ctx.strokeStyle = `hsl(${Math.round(hue)}, 100%, 55%)`;
                 } else {
-                    const t = (i / this.bufferLength) * (colors.length - 1);
+                    const t = (i / activeBins) * (colors.length - 1);
                     const idx = Math.floor(t);
                     const frac = t - idx;
                     const nextIdx = Math.min(idx + 1, colors.length - 1);
                     this.ctx.strokeStyle = this.interpolateHex(colors[idx], colors[nextIdx], frac);
                 }
             } else {
-                const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
+                const colorIndex = Math.floor((i / activeBins) * colors.length);
                 this.ctx.strokeStyle = colors[colorIndex % colors.length];
             }
             
@@ -634,15 +653,16 @@ class AudioVisualizer {
         const speed = 2;
         const w = this.canvas.width;
         const h = this.canvas.height;
+        const activeBins = this.getActiveBinCount();
         
         // Shift existing canvas down by `speed` pixels
         this.ctx.drawImage(this.canvas, 0, 0, w, h - speed, 0, speed, w, h - speed);
         
         const colors = this.colorSchemes[this.settings.colorScheme];
-        const barWidth = w / this.bufferLength;
+        const barWidth = w / activeBins;
         
         // Render current audio frequency row at y = 0
-        for (let x = 0; x < this.bufferLength; x++) {
+        for (let x = 0; x < activeBins; x++) {
             const intensity = this.dataArray[x] / 255;
             const colorIndex = Math.min(Math.floor(intensity * colors.length), colors.length - 1);
             this.ctx.fillStyle = colors[colorIndex];
