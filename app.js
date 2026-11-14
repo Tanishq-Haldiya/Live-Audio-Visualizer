@@ -51,6 +51,7 @@ class AudioVisualizer {
         
         this.initializeElements();
         this.setupEventListeners();
+        this.setupInactivityFade();
     }
     
     initializeElements() {
@@ -156,6 +157,53 @@ class AudioVisualizer {
         });
     }
     
+    setupInactivityFade() {
+        const container = document.getElementById('visualizerContainer');
+        const controls = document.getElementById('controlsOverlay');
+        const errorDisplay = document.getElementById('errorDisplay');
+        let idleTimeout = null;
+        let isHoveringControls = false;
+        
+        if (!container || !controls) return;
+        
+        controls.addEventListener('mouseenter', () => {
+            isHoveringControls = true;
+            wakeUp();
+        });
+        
+        controls.addEventListener('mouseleave', () => {
+            isHoveringControls = false;
+            scheduleIdle();
+        });
+        
+        const scheduleIdle = () => {
+            if (idleTimeout) {
+                clearTimeout(idleTimeout);
+            }
+            if (this.isPlaying && !isHoveringControls) {
+                idleTimeout = setTimeout(() => {
+                    const hasError = errorDisplay && !errorDisplay.classList.contains('hidden');
+                    const hasFocusedInput = controls.contains(document.activeElement) && document.activeElement.tagName !== 'BODY';
+                    if (!isHoveringControls && !hasError && !hasFocusedInput && this.isPlaying) {
+                        container.classList.add('ui-idle');
+                    }
+                }, 2500);
+            }
+        };
+        
+        const wakeUp = () => {
+            container.classList.remove('ui-idle');
+            scheduleIdle();
+        };
+        
+        window.addEventListener('mousemove', wakeUp);
+        window.addEventListener('mousedown', wakeUp);
+        window.addEventListener('keydown', wakeUp);
+        window.addEventListener('touchstart', wakeUp);
+        
+        this.resetUiIdle = wakeUp;
+    }
+    
     updateAudioButtons(activeSource) {
         const micBtn = document.getElementById('startMic');
         const sysBtn = document.getElementById('startSystemAudio');
@@ -211,6 +259,9 @@ class AudioVisualizer {
             this.setupAudioProcessing(stream);
             this.updateStatus('Recording (Microphone)', 'success');
             this.updateAudioButtons('mic');
+            if (this.resetUiIdle) {
+                this.resetUiIdle();
+            }
             
         } catch (error) {
             console.error('Error accessing microphone:', error);
@@ -283,6 +334,9 @@ class AudioVisualizer {
             this.setupAudioProcessing(stream);
             this.updateStatus('Live PC Audio', 'success');
             this.updateAudioButtons('system');
+            if (this.resetUiIdle) {
+                this.resetUiIdle();
+            }
             
         } catch (error) {
             console.error('Error capturing system audio:', error);
@@ -313,6 +367,9 @@ class AudioVisualizer {
             this.playAudioBuffer(audioBuffer);
             this.updateStatus('Playing File', 'success');
             this.updateAudioButtons('file');
+            if (this.resetUiIdle) {
+                this.resetUiIdle();
+            }
             
         } catch (error) {
             console.error('Error loading audio file:', error);
@@ -393,6 +450,9 @@ class AudioVisualizer {
         this.isPlaying = false;
         this.audioSourceType = 'none';
         this.systemAudioCutoffBin = null;
+        if (this.resetUiIdle) {
+            this.resetUiIdle();
+        }
         this.updateStatus('Stopped', 'info');
         this.updateAudioButtons('none');
     }
@@ -803,6 +863,9 @@ class AudioVisualizer {
         
         overlay.classList.toggle('collapsed');
         button.textContent = overlay.classList.contains('collapsed') ? 'Show Controls' : 'Hide Controls';
+        if (this.resetUiIdle) {
+            this.resetUiIdle();
+        }
     }
     
     toggleFullscreen() {
