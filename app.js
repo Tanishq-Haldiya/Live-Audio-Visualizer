@@ -329,15 +329,36 @@ class AudioVisualizer {
     }
     
     drawFrequencyBars() {
+        const centerY = this.canvas.height / 2;
         const barWidth = this.canvas.width / this.bufferLength;
+        const gap = barWidth > 3 ? 1 : (barWidth > 1.5 ? 0.5 : 0);
+        const renderWidth = Math.max(1, barWidth - gap);
+        const maxHalfHeight = (this.canvas.height / 2) - 15;
         const colors = this.colorSchemes[this.settings.colorScheme];
         
+        // Subtle central horizon reference line
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        this.ctx.fillRect(0, centerY - 0.5, this.canvas.width, 1);
+        
         for (let i = 0; i < this.bufferLength; i++) {
-            const barHeight = (this.dataArray[i] / 255) * this.canvas.height * 0.8;
+            const intensity = this.dataArray[i] / 255;
+            // Symmetrical half-height above and below the horizontal center line
+            const halfHeight = Math.max(1.5, Math.min(maxHalfHeight, intensity * (this.canvas.height * 0.44) * this.settings.gain));
             const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
             
+            const x = i * barWidth;
+            const y = centerY - halfHeight;
+            const height = halfHeight * 2;
+            
             this.ctx.fillStyle = colors[colorIndex % colors.length];
-            this.ctx.fillRect(i * barWidth, this.canvas.height - barHeight, Math.max(1, barWidth - 1), barHeight);
+            
+            if (this.ctx.roundRect && renderWidth >= 3) {
+                this.ctx.beginPath();
+                this.ctx.roundRect(x, y, renderWidth, height, Math.min(renderWidth / 2, 3));
+                this.ctx.fill();
+            } else {
+                this.ctx.fillRect(x, y, renderWidth, height);
+            }
         }
     }
     
