@@ -29,6 +29,9 @@ class AudioVisualizer {
         // Color schemes
         this.colorSchemes = {
             rainbow: ['#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00', '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff', '#ff00ff', '#ff0080'],
+            gradient: ['#ff0044', '#ff5500', '#ffaa00', '#ffee00', '#44ff00', '#00ffaa', '#00d4ff', '#0055ff', '#8800ff', '#ff00cc'],
+            sunset: ['#ff3366', '#ff6633', '#ff9933', '#ffcc00', '#cc3399', '#660099'],
+            neon: ['#00ffff', '#00aaff', '#7f00ff', '#ff00ff', '#ff007f'],
             ocean: ['#003366', '#0066cc', '#0099ff', '#33ccff', '#66ffff'],
             fire: ['#660000', '#cc0000', '#ff3300', '#ff6600', '#ffcc00', '#ffff00'],
             purple: ['#330066', '#6600cc', '#9933ff', '#cc66ff', '#ff99ff']
@@ -334,23 +337,36 @@ class AudioVisualizer {
         const gap = barWidth > 3 ? 1 : (barWidth > 1.5 ? 0.5 : 0);
         const renderWidth = Math.max(1, barWidth - gap);
         const maxHalfHeight = (this.canvas.height / 2) - 15;
-        const colors = this.colorSchemes[this.settings.colorScheme];
+        const scheme = this.settings.colorScheme;
+        const colors = this.colorSchemes[scheme] || this.colorSchemes.rainbow;
+        const isGradientMode = scheme === 'gradient' || scheme === 'sunset' || scheme === 'neon';
         
         // Subtle central horizon reference line
         this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         this.ctx.fillRect(0, centerY - 0.5, this.canvas.width, 1);
         
+        if (isGradientMode) {
+            // Continuous natural color transition across all bars
+            const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
+            for (let c = 0; c < colors.length; c++) {
+                gradient.addColorStop(c / (colors.length - 1), colors[c]);
+            }
+            this.ctx.fillStyle = gradient;
+        }
+        
         for (let i = 0; i < this.bufferLength; i++) {
             const intensity = this.dataArray[i] / 255;
             // Symmetrical half-height above and below the horizontal center line
             const halfHeight = Math.max(1.5, Math.min(maxHalfHeight, intensity * (this.canvas.height * 0.44) * this.settings.gain));
-            const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
             
             const x = i * barWidth;
             const y = centerY - halfHeight;
             const height = halfHeight * 2;
             
-            this.ctx.fillStyle = colors[colorIndex % colors.length];
+            if (!isGradientMode) {
+                const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
+                this.ctx.fillStyle = colors[colorIndex % colors.length];
+            }
             
             if (this.ctx.roundRect && renderWidth >= 3) {
                 this.ctx.beginPath();
@@ -366,7 +382,9 @@ class AudioVisualizer {
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
         const radius = Math.min(centerX, centerY) * 0.45;
-        const colors = this.colorSchemes[this.settings.colorScheme];
+        const scheme = this.settings.colorScheme;
+        const colors = this.colorSchemes[scheme] || this.colorSchemes.rainbow;
+        const isGradientMode = scheme === 'gradient' || scheme === 'sunset' || scheme === 'neon';
         
         // Inner subtle baseline circle
         this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -378,14 +396,28 @@ class AudioVisualizer {
         for (let i = 0; i < this.bufferLength; i++) {
             const angle = (i / this.bufferLength) * Math.PI * 2;
             const barHeight = (this.dataArray[i] / 255) * radius * 0.9;
-            const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
             
             const x1 = centerX + Math.cos(angle) * radius;
             const y1 = centerY + Math.sin(angle) * radius;
             const x2 = centerX + Math.cos(angle) * (radius + barHeight);
             const y2 = centerY + Math.sin(angle) * (radius + barHeight);
             
-            this.ctx.strokeStyle = colors[colorIndex % colors.length];
+            if (isGradientMode) {
+                if (scheme === 'gradient') {
+                    const hue = (i / this.bufferLength) * 360;
+                    this.ctx.strokeStyle = `hsl(${Math.round(hue)}, 100%, 55%)`;
+                } else {
+                    const t = (i / this.bufferLength) * (colors.length - 1);
+                    const idx = Math.floor(t);
+                    const frac = t - idx;
+                    const nextIdx = Math.min(idx + 1, colors.length - 1);
+                    this.ctx.strokeStyle = this.interpolateHex(colors[idx], colors[nextIdx], frac);
+                }
+            } else {
+                const colorIndex = Math.floor((i / this.bufferLength) * colors.length);
+                this.ctx.strokeStyle = colors[colorIndex % colors.length];
+            }
+            
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
             this.ctx.moveTo(x1, y1);
@@ -578,6 +610,19 @@ class AudioVisualizer {
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+    
+    interpolateHex(hex1, hex2, factor) {
+        const r1 = parseInt(hex1.slice(1, 3), 16);
+        const g1 = parseInt(hex1.slice(3, 5), 16);
+        const b1 = parseInt(hex1.slice(5, 7), 16);
+        const r2 = parseInt(hex2.slice(1, 3), 16);
+        const g2 = parseInt(hex2.slice(3, 5), 16);
+        const b2 = parseInt(hex2.slice(5, 7), 16);
+        const r = Math.round(r1 + (r2 - r1) * factor);
+        const g = Math.round(g1 + (g2 - g1) * factor);
+        const b = Math.round(b1 + (b2 - b1) * factor);
+        return `rgb(${r}, ${g}, ${b})`;
     }
     
     updateStatus(message, type) {

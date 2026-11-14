@@ -18,8 +18,8 @@ Experience audio visualization with multiple reactive modes, customizable audio 
   - 🌊 **Spectrogram**: Continuous high-speed waterfall spectrogram running at a locked 60 FPS.
   - ✨ **Particles**: Bass-reactive floating particle field with dynamic physics impulses.
 - **Customizable Controls**:
-  - **Color Schemes**: Rainbow, Ocean, Fire, and Purple palettes.
-  - **Sensitivity**: Real-time gain control multiplier (0.1x – 3.0x).
+  - **Color Schemes**: Rainbow, Rainbow Gradient, Sunset Gradient, Neon / Cyberpunk, Ocean, Fire, and Purple palettes.
+  - **Sensitivity**: Real-time gain control multiplier (0.1x – 10.0x).
   - **FFT Size**: Configurable frequency resolution (128, 256, 512, 1024, 2048 bins).
   - **Smoothing**: Adjustable smoothing time constant (0.0 – 0.9).
 - **Modern UI**:
