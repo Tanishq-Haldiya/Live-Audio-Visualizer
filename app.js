@@ -392,6 +392,7 @@ class AudioVisualizer {
         
         this.isPlaying = false;
         this.audioSourceType = 'none';
+        this.systemAudioCutoffBin = null;
         this.updateStatus('Stopped', 'info');
         this.updateAudioButtons('none');
     }
@@ -445,10 +446,37 @@ class AudioVisualizer {
     getActiveBinCount() {
         if (this.audioSourceType === 'system' && this.audioContext) {
             const nyquist = this.audioContext.sampleRate / 2;
-            // Digital streaming/browser audio cuts off at ~16.2 kHz; crop to active audible band
-            const maxFreq = 16200;
-            const ratio = Math.min(1.0, maxFreq / nyquist);
-            return Math.max(16, Math.floor(this.bufferLength * ratio));
+            const minScanBin = Math.max(16, Math.floor((12000 / nyquist) * this.bufferLength));
+            const maxScanBin = Math.min(this.bufferLength - 1, Math.floor((22000 / nyquist) * this.bufferLength));
+            
+            // Initialize if not set
+            if (!this.systemAudioCutoffBin) {
+                this.systemAudioCutoffBin = Math.floor((15500 / nyquist) * this.bufferLength);
+            }
+            
+            // Dynamically scan for highest active frequency bin in the stream
+            let highestActiveBin = 0;
+            for (let b = maxScanBin; b >= minScanBin; b--) {
+                if (this.dataArray[b] > 2) {
+                    highestActiveBin = b;
+                    break;
+                }
+            }
+            
+            if (highestActiveBin > 0) {
+                if (highestActiveBin >= this.systemAudioCutoffBin) {
+                    // Instantly expand to capture any higher frequencies (e.g. cymbals or high-res audio)
+                    this.systemAudioCutoffBin = highestActiveBin + 1;
+                } else {
+                    // Very slow, smooth decay (~1.5 bins/sec at 60fps) so quiet musical moments don't jitter
+                    this.systemAudioCutoffBin = Math.max(
+                        highestActiveBin + 1,
+                        this.systemAudioCutoffBin - 0.025
+                    );
+                }
+            }
+            
+            return Math.max(minScanBin, Math.min(maxScanBin, Math.round(this.systemAudioCutoffBin)));
         }
         // Microphone keeps 100% full spectrum resolution
         return this.bufferLength;
