@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Audio Visualizer</title>
+    <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+    <!-- Welcome Screen -->
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-content">
+            <h1>Live Audio Visualizer</h1>
+            <p>Experience real-time audio visualization with multiple modes and customizable settings.</p>
+            <div class="welcome-instructions">
+                <h3>Getting Started:</h3>
+                <ul>
+                    <li>Click "Start Visualizer" to begin</li>
+                    <li>Grant microphone permission when prompted</li>
+                    <li>Choose from 5 different visualization modes</li>
+                    <li>Customize colors, sensitivity, and other settings</li>
+                    <li>Upload audio files as an alternative to microphone</li>
+                </ul>
+            </div>
+            <button id="startButton" class="btn btn--primary btn--lg">Start Visualizer</button>
+        </div>
+    </div>
+
+    <!-- Main Visualizer Interface -->
+    <div id="visualizerContainer" class="visualizer-container hidden">
+        <!-- Canvas for visualizations -->
+        <canvas id="visualizerCanvas"></canvas>
+        
+        <!-- Controls Overlay -->
+        <div id="controlsOverlay" class="controls-overlay">
+            <div class="controls-header">
+                <h2>Audio Visualizer</h2>
+                <button id="toggleControls" class="btn btn--secondary btn--sm">Hide Controls</button>
+            </div>
+            
+            <div class="controls-content">
+                <!-- Audio Controls -->
+                <div class="control-section">
+                    <h3>Audio Source</h3>
+                    <div class="control-group">
+                        <button id="startMic" class="btn btn--primary">Start Microphone</button>
+                        <button id="stopAudio" class="btn btn--outline" disabled>Stop Audio</button>
+                    </div>
+                    <div class="control-group">
+                        <label for="audioFile" class="form-label">Upload Audio File</label>
+                        <input type="file" id="audioFile" accept="audio/*" class="form-control">
+                    </div>
+                </div>
+
+                <!-- Visualization Type -->
+                <div class="control-section">
+                    <h3>Visualization</h3>
+                    <div class="control-group">
+                        <label for="vizType" class="form-label">Visualization Type</label>
+                        <select id="vizType" class="form-control">
+                            <option value="bars">Frequency Bars</option>
+                            <option value="circular">Circular Spectrum</option>
+                            <option value="waveform">Waveform</option>
+                            <option value="spectrogram">Spectrogram</option>
+                            <option value="particles">Particles</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="control-section">
+                    <h3>Settings</h3>
+                    <div class="control-group">
+                        <label for="gainSlider" class="form-label">Sensitivity: <span id="gainValue">1.0</span></label>
+                        <input type="range" id="gainSlider" class="form-control" min="0.1" max="3.0" step="0.1" value="1.0">
+                    </div>
+                    <div class="control-group">
+                        <label for="fftSize" class="form-label">FFT Size</label>
+                        <select id="fftSize" class="form-control">
+                            <option value="128">128</option>
+                            <option value="256">256</option>
+                            <option value="512">512</option>
+                            <option value="1024" selected>1024</option>
+                            <option value="2048">2048</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="smoothing" class="form-label">Smoothing: <span id="smoothingValue">0.8</span></label>
+                        <input type="range" id="smoothing" class="form-control" min="0.0" max="0.9" step="0.1" value="0.8">
+                    </div>
+                </div>
+
+                <!-- Colors -->
+                <div class="control-section">
+                    <h3>Colors</h3>
+                    <div class="control-group">
+                        <label for="colorScheme" class="form-label">Color Scheme</label>
+                        <select id="colorScheme" class="form-control">
+                            <option value="rainbow" selected>Rainbow</option>
+                            <option value="ocean">Ocean</option>
+                            <option value="fire">Fire</option>
+                            <option value="purple">Purple</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Additional Controls -->
+                <div class="control-section">
+                    <h3>Display</h3>
+                    <div class="control-group">
+                        <button id="fullscreen" class="btn btn--secondary">Toggle Fullscreen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Display -->
+        <div id="statusDisplay" class="status-display">
+            <div id="audioStatus" class="status status--info">Ready</div>
+            <div id="fpsCounter" class="fps-counter">FPS: 0</div>
+        </div>
+
+        <!-- Error Messages -->
+        <div id="errorDisplay" class="error-display hidden">
+            <div class="error-content">
+                <h3>Audio Access Error</h3>
+                <p id="errorMessage"></p>
+                <button id="dismissError" class="btn btn--secondary">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2"></script>
+</body>
+</html>
