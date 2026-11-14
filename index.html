@@ -15,14 +15,16 @@
             <div class="welcome-instructions">
                 <h3>Getting Started:</h3>
                 <ul>
-                    <li>Click "Start Visualizer" to begin</li>
-                    <li>Grant microphone permission when prompted</li>
+                    <li>Capture real-time PC audio (Spotify, games, YouTube) or microphone</li>
                     <li>Choose from 5 different visualization modes</li>
                     <li>Customize colors, sensitivity, and other settings</li>
-                    <li>Upload audio files as an alternative to microphone</li>
+                    <li>Upload audio files as an alternative source</li>
                 </ul>
             </div>
-            <button id="startButton" class="btn btn--primary btn--lg">Start Visualizer</button>
+            <div class="welcome-actions">
+                <button id="startButton" class="btn btn--primary btn--lg">Start with Microphone</button>
+                <button id="startSystemButton" class="btn btn--secondary btn--lg">Capture PC Audio</button>
+            </div>
         </div>
     </div>
 
@@ -42,8 +44,9 @@
                 <!-- Audio Controls -->
                 <div class="control-section">
                     <h3>Audio Source</h3>
-                    <div class="control-group">
+                    <div class="control-group audio-source-buttons">
                         <button id="startMic" class="btn btn--primary">Start Microphone</button>
+                        <button id="startSystemAudio" class="btn btn--secondary">Capture PC Audio</button>
                         <button id="stopAudio" class="btn btn--outline" disabled>Stop Audio</button>
                     </div>
                     <div class="control-group">
@@ -133,6 +136,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=10"></script>
+    <script src="app.js?v=11"></script>
 </body>
 </html>

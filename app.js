@@ -70,13 +70,27 @@ class AudioVisualizer {
     setupEventListeners() {
         // Welcome screen
         document.getElementById('startButton').addEventListener('click', () => {
-            this.showVisualizer();
+            this.showVisualizer('mic');
         });
+        
+        const startSystemBtn = document.getElementById('startSystemButton');
+        if (startSystemBtn) {
+            startSystemBtn.addEventListener('click', () => {
+                this.showVisualizer('system');
+            });
+        }
         
         // Audio controls
         document.getElementById('startMic').addEventListener('click', () => {
             this.startMicrophone();
         });
+        
+        const startSystemAudioBtn = document.getElementById('startSystemAudio');
+        if (startSystemAudioBtn) {
+            startSystemAudioBtn.addEventListener('click', () => {
+                this.startSystemAudio();
+            });
+        }
         
         document.getElementById('stopAudio').addEventListener('click', () => {
             this.stopAudio();
@@ -141,11 +155,25 @@ class AudioVisualizer {
         });
     }
     
-    showVisualizer() {
+    updateAudioButtons(activeSource) {
+        const micBtn = document.getElementById('startMic');
+        const sysBtn = document.getElementById('startSystemAudio');
+        const stopBtn = document.getElementById('stopAudio');
+        
+        if (micBtn) micBtn.disabled = (activeSource === 'mic');
+        if (sysBtn) sysBtn.disabled = (activeSource === 'system');
+        if (stopBtn) stopBtn.disabled = (activeSource === 'none');
+    }
+    
+    showVisualizer(sourceType = 'mic') {
         document.getElementById('welcomeScreen').classList.add('hidden');
         document.getElementById('visualizerContainer').classList.remove('hidden');
         this.startAnimation();
-        this.startMicrophone();
+        if (sourceType === 'system') {
+            this.startSystemAudio();
+        } else {
+            this.startMicrophone();
+        }
     }
     
     async startMicrophone() {
@@ -179,14 +207,83 @@ class AudioVisualizer {
             this.mediaStream = stream;
             
             this.setupAudioProcessing(stream);
-            this.updateStatus('Recording', 'success');
-            
-            document.getElementById('startMic').disabled = true;
-            document.getElementById('stopAudio').disabled = false;
+            this.updateStatus('Recording (Microphone)', 'success');
+            this.updateAudioButtons('mic');
             
         } catch (error) {
             console.error('Error accessing microphone:', error);
             this.showError('Could not access microphone. Please check permissions or upload an audio file.');
+        }
+    }
+    
+    async startSystemAudio() {
+        if (this.isPlaying) {
+            this.stopAudio();
+        }
+        
+        try {
+            if (!this.audioContext) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            
+            let stream;
+            try {
+                // Request display media with system audio included
+                stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        systemAudio: 'include'
+                    }
+                });
+            } catch (err) {
+                if (err.name === 'NotAllowedError') {
+                    return; // User cancelled the browser share dialog
+                }
+                // Fallback for browsers that only accept boolean audio constraint
+                try {
+                    stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: true
+                    });
+                } catch (fallbackErr) {
+                    if (fallbackErr.name === 'NotAllowedError') {
+                        return;
+                    }
+                    throw fallbackErr;
+                }
+            }
+            
+            const audioTracks = stream.getAudioTracks();
+            if (!audioTracks || audioTracks.length === 0) {
+                stream.getTracks().forEach(track => track.stop());
+                this.showError('No system audio detected. In the share window, make sure to select "Entire Screen" and check the "Share system audio" box.');
+                return;
+            }
+            
+            // Stop video track immediately to eliminate video encoding and GPU rendering overhead
+            stream.getVideoTracks().forEach(track => track.stop());
+            
+            this.mediaStream = stream;
+            
+            // Handle user clicking the browser's native "Stop sharing" bar
+            audioTracks[0].onended = () => {
+                this.stopAudio();
+            };
+            
+            this.setupAudioProcessing(stream);
+            this.updateStatus('Live PC Audio', 'success');
+            this.updateAudioButtons('system');
+            
+        } catch (error) {
+            console.error('Error capturing system audio:', error);
+            this.showError('Could not capture system audio. Ensure your browser supports screen audio sharing.');
         }
     }
     
@@ -211,9 +308,7 @@ class AudioVisualizer {
             
             this.playAudioBuffer(audioBuffer);
             this.updateStatus('Playing File', 'success');
-            
-            document.getElementById('startMic').disabled = false;
-            document.getElementById('stopAudio').disabled = false;
+            this.updateAudioButtons('file');
             
         } catch (error) {
             console.error('Error loading audio file:', error);
@@ -293,9 +388,7 @@ class AudioVisualizer {
         
         this.isPlaying = false;
         this.updateStatus('Stopped', 'info');
-        
-        document.getElementById('startMic').disabled = false;
-        document.getElementById('stopAudio').disabled = true;
+        this.updateAudioButtons('none');
     }
     
     startAnimation() {
